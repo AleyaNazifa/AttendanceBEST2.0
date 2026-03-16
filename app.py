@@ -390,19 +390,18 @@ def build_bar_chart(data, x_col, y_col, color_col=None, title=""):
 # ── Header ───────────────────────────────────────────────────────────────────
 st.markdown(
     """
-    <div style="margin-bottom: 8px;">
+    <div style="margin-bottom: 24px;">
         <div style="font-size: 11px; font-weight: 700; letter-spacing: 2px;
                     color: #1d4ed8; text-transform: uppercase; margin-bottom: 6px;">
             PROGRAMME DASHBOARD
         </div>
         <h1 style="font-size: 2rem; margin: 0; padding: 0;">
-            📊 BEST 2.0 Attendance Dashboard
+            🏫 BEST 2.0 — School Breakdown
         </h1>
     </div>
     """,
     unsafe_allow_html=True,
 )
-st.caption("Dashboard kehadiran ikut sekolah, subjek, dan tarikh")
 
 df = load_data()
 
@@ -475,255 +474,78 @@ if filtered_df.empty:
     st.info("Tiada data untuk filter yang dipilih.")
     st.stop()
 
-# ── KPI metrics ───────────────────────────────────────────────────────────────
-overall_present = filtered_df["present"].sum()
-overall_total = filtered_df["total"].sum()
-overall_pct = (overall_present / overall_total * 100) if overall_total else 0
-
-pct_color = kpi_color(overall_pct)
-
-col1, col2, col3 = st.columns(3)
-col1.metric("👥 Jumlah Hadir", f"{int(overall_present):,}")
-col2.metric("📋 Jumlah Direkod", f"{int(overall_total):,}")
-col3.metric("📈 Overall Attendance", f"{overall_pct:.1f}%")
-
-# Date context banner
-if filter_mode == "Pilih Satu Tarikh" and selected_single_date is not None:
-    label = f"📅 Paparan untuk tarikh: **{selected_single_date}**"
-elif filter_mode == "Julat Tarikh" and selected_date_range:
-    label = f"📅 Paparan untuk julat: **{start_date} hingga {end_date}**"
-else:
-    label = "📅 Paparan untuk: **semua tarikh**"
-
-st.info(label)
-st.divider()
-
 # ── Summaries ─────────────────────────────────────────────────────────────────
 summary_df = make_school_subject_summary(filtered_df)
-daily_summary_df = make_daily_school_subject_summary(filtered_df)
 
-# ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["🏫  Sekolah", "📚  Subjek", "📅  Tarikh"])
+# Date context pill
+if filter_mode == "Pilih Satu Tarikh" and selected_single_date is not None:
+    date_label = f"📅 {selected_single_date}"
+elif filter_mode == "Julat Tarikh" and selected_date_range:
+    date_label = f"📅 {start_date} — {end_date}"
+else:
+    date_label = "📅 Semua Tarikh"
 
-# ─────────────── TAB 1: SEKOLAH ──────────────────────────────────────────────
-with tab1:
-    st.markdown("### 🏫 Sekolah Overview")
+st.markdown(
+    f"""
+    <div style="display:inline-block; background:#1e2d4a; border:1px solid #2d4a7a;
+                border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+                color:#93c5fd; margin-bottom:24px;">
+        {date_label}
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-    pivot = summary_df.pivot(index="school", columns="subject", values="attendance_pct")
-    for subject in ["BM", "BI", "MATH", "SEJ"]:
-        if subject not in pivot.columns:
-            pivot[subject] = pd.NA
-    pivot = pivot[["BM", "BI", "MATH", "SEJ"]]
-    pivot_display = pivot.copy()
-    for col in pivot_display.columns:
-        pivot_display[col] = pivot_display[col].map(
-            lambda x: "—" if pd.isna(x) else f"{x:.1f}%"
-        )
-    st.dataframe(pivot_display, use_container_width=True)
+# ── School Breakdown ──────────────────────────────────────────────────────────
+school_list = sorted(summary_df["school"].dropna().unique().tolist())
 
-    st.markdown("#### 📊 Overall Attendance by School")
-    school_chart_df = (
-        filtered_df.groupby("school", dropna=False)
-        .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-        .reset_index()
+for school in school_list:
+    school_df = summary_df[summary_df["school"] == school].copy()
+
+    st.markdown(
+        f"""
+        <div style="
+            display: inline-flex; align-items: center; gap: 10px;
+            background: #1a2035; border: 1px solid #1e2d4a;
+            border-radius: 12px; padding: 10px 18px; margin: 16px 0 12px;
+        ">
+            <span style="font-size: 18px;">🏫</span>
+            <span style="font-size: 15px; font-weight: 700; color: #e2e8f0;">{school}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    school_chart_df["attendance_pct"] = (
-        school_chart_df["total_present"] / school_chart_df["total_students"] * 100
-    ).round(2)
-    school_chart = build_bar_chart(
-        school_chart_df, x_col="school:N", y_col="attendance_pct:Q", title="Attendance by School"
-    )
-    if school_chart is not None:
-        st.altair_chart(school_chart, use_container_width=True)
 
-    st.markdown("#### 🏫 School Breakdown")
-    school_list = sorted(summary_df["school"].dropna().unique().tolist())
+    wanted_subjects = ["BM", "BI", "MATH", "SEJ"]
+    subject_map = {row["subject"]: row for _, row in school_df.iterrows()}
+    cols = st.columns(4)
 
-    for school in school_list:
-        school_df = summary_df[summary_df["school"] == school].copy()
+    for i, subject in enumerate(wanted_subjects):
+        row = subject_map.get(subject)
+        if row is not None:
+            pct = row["attendance_pct"]
+            pt_text = f'{int(row["total_present"])}/{int(row["total_students"])} hadir'
+        else:
+            pct = None
+            pt_text = "Tiada data"
+        with cols[i]:
+            render_subject_card(subject, pct, pt_text)
 
-        # School header pill
-        st.markdown(
-            f"""
-            <div style="
-                display: inline-flex; align-items: center; gap: 10px;
-                background: #1a2035; border: 1px solid #1e2d4a;
-                border-radius: 12px; padding: 10px 18px; margin: 16px 0 12px;
-            ">
-                <span style="font-size: 18px;">🏫</span>
-                <span style="font-size: 15px; font-weight: 700; color: #e2e8f0;">{school}</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    with st.expander(f"📋 Lihat rekod sesi untuk {school}"):
+        school_sessions = filtered_df[filtered_df["school"] == school].copy()
+        display_cols = [
+            "date", "subject", "session", "teacher_name",
+            "present", "total", "attendance_pct", "attendance_source",
+            "attendance_text_raw", "absent_text_raw", "mastery_level",
+            "engagement_level", "objective_achieved", "challenge",
+        ]
+        existing_cols = [c for c in display_cols if c in school_sessions.columns]
+        school_sessions = school_sessions[existing_cols].sort_values(
+            ["date", "subject", "session"], ascending=[False, True, True]
         )
+        st.dataframe(school_sessions, use_container_width=True)
 
-        wanted_subjects = ["BM", "BI", "MATH", "SEJ"]
-        subject_map = {row["subject"]: row for _, row in school_df.iterrows()}
-        cols = st.columns(4)
-
-        for i, subject in enumerate(wanted_subjects):
-            row = subject_map.get(subject)
-            if row is not None:
-                pct = row["attendance_pct"]
-                pt_text = f'{int(row["total_present"])}/{int(row["total_students"])} hadir'
-            else:
-                pct = None
-                pt_text = "Tiada data"
-            with cols[i]:
-                render_subject_card(subject, pct, pt_text)
-
-        with st.expander(f"📋 Lihat rekod sesi untuk {school}"):
-            school_sessions = filtered_df[filtered_df["school"] == school].copy()
-            display_cols = [
-                "date", "subject", "session", "teacher_name",
-                "present", "total", "attendance_pct", "attendance_source",
-                "attendance_text_raw", "absent_text_raw", "mastery_level",
-                "engagement_level", "objective_achieved", "challenge",
-            ]
-            existing_cols = [c for c in display_cols if c in school_sessions.columns]
-            school_sessions = school_sessions[existing_cols].sort_values(
-                ["date", "subject", "session"], ascending=[False, True, True]
-            )
-            st.dataframe(school_sessions, use_container_width=True)
-
-        st.divider()
-
-# ─────────────── TAB 2: SUBJEK ───────────────────────────────────────────────
-with tab2:
-    st.markdown("### 📚 Subjek Overview")
-
-    subject_summary = (
-        filtered_df.groupby("subject", dropna=False)
-        .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-        .reset_index()
-    )
-    subject_summary["attendance_pct"] = (
-        subject_summary["total_present"] / subject_summary["total_students"] * 100
-    ).round(2)
-    st.dataframe(subject_summary, use_container_width=True)
-
-    st.markdown("#### 📊 Attendance by Subject")
-    subject_chart = build_bar_chart(
-        subject_summary, x_col="subject:N", y_col="attendance_pct:Q", title="Attendance by Subject"
-    )
-    if subject_chart is not None:
-        st.altair_chart(subject_chart, use_container_width=True)
-
-    st.markdown("#### 📖 Subjek Breakdown")
-    for subject in ["BM", "BI", "MATH", "SEJ"]:
-        sub_df = filtered_df[filtered_df["subject"] == subject].copy()
-        if sub_df.empty:
-            continue
-
-        total_present = sub_df["present"].sum()
-        total_students = sub_df["total"].sum()
-        pct = (total_present / total_students * 100) if total_students else None
-
-        st.markdown(
-            f"""
-            <div style="
-                display: inline-flex; align-items: center; gap: 10px;
-                background: #1a2035; border: 1px solid #1e2d4a;
-                border-radius: 12px; padding: 10px 18px; margin: 16px 0 8px;
-            ">
-                <span style="font-size: 18px;">📖</span>
-                <span style="font-size: 15px; font-weight: 700; color: #e2e8f0;">{subject}</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        render_subject_card(subject, pct, f"{int(total_present)}/{int(total_students)} hadir")
-
-        by_school = (
-            sub_df.groupby("school", dropna=False)
-            .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-            .reset_index()
-        )
-        by_school["attendance_pct"] = (
-            by_school["total_present"] / by_school["total_students"] * 100
-        ).round(2)
-
-        chart = build_bar_chart(
-            by_school, x_col="school:N", y_col="attendance_pct:Q",
-            title=f"{subject} Attendance by School"
-        )
-        if chart is not None:
-            st.altair_chart(chart, use_container_width=True)
-
-        st.dataframe(by_school, use_container_width=True)
-        st.divider()
-
-# ─────────────── TAB 3: TARIKH ───────────────────────────────────────────────
-with tab3:
-    st.markdown("### 📅 Tarikh Overview")
-
-    by_date = (
-        df.groupby("date", dropna=False)
-        .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-        .reset_index()
-    )
-    by_date["attendance_pct"] = (
-        by_date["total_present"] / by_date["total_students"] * 100
-    ).round(2)
-
-    date_chart = build_bar_chart(
-        by_date, x_col="date:T", y_col="attendance_pct:Q", title="Attendance by Date"
-    )
-    if date_chart is not None:
-        st.altair_chart(date_chart, use_container_width=True)
-
-    st.markdown("#### Breakdown Tarikh Semasa")
-
-    if filter_mode == "Pilih Satu Tarikh" and selected_single_date is not None:
-        selected_day_df = filtered_df.copy()
-        st.markdown(f"##### Kehadiran pada {selected_single_date}")
-
-        day_summary = (
-            selected_day_df.groupby(["school", "subject"], dropna=False)
-            .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-            .reset_index()
-        )
-        day_summary["attendance_pct"] = (
-            day_summary["total_present"] / day_summary["total_students"] * 100
-        ).round(2)
-        st.dataframe(day_summary, use_container_width=True)
-
-        st.markdown("##### 📊 Subject Attendance — Tarikh Dipilih")
-        day_subject = (
-            selected_day_df.groupby("subject", dropna=False)
-            .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-            .reset_index()
-        )
-        day_subject["attendance_pct"] = (
-            day_subject["total_present"] / day_subject["total_students"] * 100
-        ).round(2)
-        day_subject_chart = build_bar_chart(
-            day_subject, x_col="subject:N", y_col="attendance_pct:Q",
-            title=f"Attendance by Subject on {selected_single_date}"
-        )
-        if day_subject_chart is not None:
-            st.altair_chart(day_subject_chart, use_container_width=True)
-
-        st.markdown("##### 🏫 School Attendance — Tarikh Dipilih")
-        day_school = (
-            selected_day_df.groupby("school", dropna=False)
-            .agg(total_present=("present", "sum"), total_students=("total", "sum"))
-            .reset_index()
-        )
-        day_school["attendance_pct"] = (
-            day_school["total_present"] / day_school["total_students"] * 100
-        ).round(2)
-        day_school_chart = build_bar_chart(
-            day_school, x_col="school:N", y_col="attendance_pct:Q",
-            title=f"Attendance by School on {selected_single_date}"
-        )
-        if day_school_chart is not None:
-            st.altair_chart(day_school_chart, use_container_width=True)
-    else:
-        st.info("Pilih mode **Pilih Satu Tarikh** untuk tengok attendance pada hari itu sahaja.")
-
-st.divider()
+    st.divider()
 
 # ── Below KPI section ─────────────────────────────────────────────────────────
 st.markdown(
