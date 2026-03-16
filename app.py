@@ -116,6 +116,79 @@ st.markdown(
 
     /* ── Caption ── */
     .stCaption { color: #475569 !important; font-size: 12px; }
+
+    /* ── Multiselect tags — kill the red, go subtle blue-grey ── */
+    [data-testid="stSidebar"] [data-baseweb="tag"] {
+        background-color: #1e2d4a !important;
+        border: 1px solid #2d4a7a !important;
+        border-radius: 6px !important;
+        color: #93c5fd !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        padding: 2px 8px !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="tag"] span {
+        color: #93c5fd !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="tag"] [role="presentation"] svg {
+        fill: #60a5fa !important;
+    }
+
+    /* ── Multiselect container box ── */
+    [data-testid="stSidebar"] [data-baseweb="select"] > div:first-child {
+        background: #0f1520 !important;
+        border: 1px solid #1e2d4a !important;
+        border-radius: 10px !important;
+    }
+    [data-testid="stSidebar"] [data-baseweb="select"] > div:first-child:focus-within {
+        border-color: #3b82f6 !important;
+        box-shadow: 0 0 0 2px rgba(59,130,246,0.15) !important;
+    }
+
+    /* ── Selectbox (Pilih Tarikh) ── */
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
+        background: #0f1520 !important;
+        border: 1px solid #1e2d4a !important;
+        border-radius: 10px !important;
+        color: #e2e8f0 !important;
+        font-size: 13px !important;
+    }
+
+    /* ── Section labels in sidebar ── */
+    [data-testid="stSidebar"] .stMultiSelect label,
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] .stRadio > label {
+        color: #64748b !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.8px !important;
+    }
+
+    /* ── Date input ── */
+    [data-testid="stSidebar"] [data-testid="stDateInput"] input {
+        background: #0f1520 !important;
+        border: 1px solid #1e2d4a !important;
+        border-radius: 10px !important;
+        color: #e2e8f0 !important;
+        font-size: 13px !important;
+    }
+
+    /* ── Dropdown popup ── */
+    [data-baseweb="popover"] [data-baseweb="menu"] {
+        background: #161b27 !important;
+        border: 1px solid #1e2d4a !important;
+        border-radius: 10px !important;
+    }
+    [data-baseweb="popover"] [role="option"] {
+        color: #cbd5e1 !important;
+        font-size: 13px !important;
+    }
+    [data-baseweb="popover"] [role="option"]:hover,
+    [data-baseweb="popover"] [aria-selected="true"] {
+        background: #1e2d4a !important;
+        color: #93c5fd !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
