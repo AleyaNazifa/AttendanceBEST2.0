@@ -273,8 +273,18 @@ def build_bar_chart(data, x_col, y_col, color_col=None, title=""):
     if data.empty:
         return None
 
-    # Colour ramp based on value
-    base = alt.Chart(data).mark_bar(
+    # Add a colour category column so we avoid nested alt.condition (unsupported)
+    chart_data = data.copy()
+    chart_data["_color"] = chart_data["attendance_pct"].apply(
+        lambda v: "≥90%" if v >= 90 else ("80–89%" if v >= 80 else "<80%")
+    )
+
+    color_scale = alt.Scale(
+        domain=["≥90%", "80–89%", "<80%"],
+        range=["#22c55e", "#f59e0b", "#ef4444"],
+    )
+
+    base = alt.Chart(chart_data).mark_bar(
         cornerRadiusTopLeft=6,
         cornerRadiusTopRight=6,
     ).encode(
@@ -284,15 +294,7 @@ def build_bar_chart(data, x_col, y_col, color_col=None, title=""):
         y=alt.Y(y_col, title="Attendance %", scale=alt.Scale(domain=[0, 100]),
                 axis=alt.Axis(labelColor="#64748b", tickColor="#1e2535", domainColor="#1e2535",
                               gridColor="#1e2535", labelFont="Plus Jakarta Sans")),
-        color=alt.condition(
-            alt.datum.attendance_pct >= 90,
-            alt.value("#22c55e"),
-            alt.condition(
-                alt.datum.attendance_pct >= 80,
-                alt.value("#f59e0b"),
-                alt.value("#ef4444"),
-            ),
-        ),
+        color=alt.Color("_color:N", scale=color_scale, legend=None),
         tooltip=list(data.columns),
     ).properties(
         title=alt.TitleParams(
